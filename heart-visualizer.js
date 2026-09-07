@@ -14,7 +14,7 @@ class HeartVisualizer {
     this.bpmCounter = document.getElementById('bpmCounter');
     this.occupancyPercent = document.getElementById('occupancyPercent');
     this.emanLiquidFill = document.getElementById('emanLiquidFill');
-    this.emanWatermark = document.getElementById('emanHeartWatermark');
+    this.emanBoldPlate = document.getElementById('emanBoldPlate');
     this.heartSvg = document.getElementById('anatomicalHeartSvg');
     this.heartStage = document.getElementById('heartStage');
     this.verdictText = document.getElementById('verdictText');
@@ -42,6 +42,7 @@ class HeartVisualizer {
   init() {
     this.resizeCanvases();
     window.addEventListener('resize', () => this.resizeCanvases());
+    window.addEventListener('orientationchange', () => setTimeout(() => this.resizeCanvases(), 200));
 
     this.createAmbientParticles();
     this.setupEventListeners();
@@ -54,27 +55,36 @@ class HeartVisualizer {
   resizeCanvases() {
     if (this.particleCanvas && this.heartStage) {
       const rect = this.heartStage.getBoundingClientRect();
-      this.particleCanvas.width = rect.width;
-      this.particleCanvas.height = rect.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.particleCanvas.width = rect.width * dpr;
+      this.particleCanvas.height = rect.height * dpr;
+      this.ctx.scale(dpr, dpr);
+      this.canvasWidth = rect.width;
+      this.canvasHeight = rect.height;
     }
 
     if (this.ecgCanvas) {
-      this.ecgCanvas.width = this.ecgCanvas.parentElement.clientWidth - 20;
-      this.ecgCanvas.height = 55;
+      const containerWidth = this.ecgCanvas.parentElement.clientWidth - 20;
+      this.ecgCanvas.width = containerWidth;
+      this.ecgCanvas.height = 48;
     }
   }
 
   createAmbientParticles() {
-    const count = 45;
+    const isMobile = window.innerWidth <= 430;
+    const count = isMobile ? 28 : 45;
     this.particles = [];
+    const w = this.canvasWidth || 380;
+    const h = this.canvasHeight || 450;
+
     for (let i = 0; i < count; i++) {
       this.particles.push({
-        x: Math.random() * (this.particleCanvas.width || 400),
-        y: Math.random() * (this.particleCanvas.height || 480),
-        size: Math.random() * 2.5 + 0.8,
-        speedY: -(Math.random() * 0.7 + 0.2),
-        speedX: (Math.random() - 0.5) * 0.4,
-        alpha: Math.random() * 0.6 + 0.2,
+        x: Math.random() * w,
+        y: Math.random() * h,
+        size: Math.random() * 2.2 + 0.8,
+        speedY: -(Math.random() * 0.6 + 0.2),
+        speedX: (Math.random() - 0.5) * 0.35,
+        alpha: Math.random() * 0.6 + 0.25,
         color: Math.random() > 0.4 ? '#ff758c' : '#ffd166'
       });
     }
@@ -82,13 +92,26 @@ class HeartVisualizer {
 
   setupEventListeners() {
     // Tap or click on heart stage to produce romantic particle burst
-    this.heartStage.addEventListener('click', (e) => {
+    const handleStageTouch = (e) => {
       const rect = this.heartStage.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      this.spawnHeartBurst(x, y);
+      let clientX = e.clientX;
+      let clientY = e.clientY;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+
+      if (clientX !== undefined && clientY !== undefined) {
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        this.spawnHeartBurst(x, y);
+      }
       this.triggerMicroBeat();
-    });
+    };
+
+    this.heartStage.addEventListener('click', handleStageTouch);
+    this.heartStage.addEventListener('touchstart', handleStageTouch, { passive: true });
 
     // Scan Occupancy Button
     if (this.scanBtn) {
@@ -115,17 +138,15 @@ class HeartVisualizer {
         y: y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - 1.2,
-        size: Math.random() * 14 + 10,
+        size: Math.random() * 12 + 8,
         alpha: 1,
-        rotation: Math.random() * Math.PI,
-        color: Math.random() > 0.5 ? '#ff2a6d' : '#ff758c'
+        color: Math.random() > 0.5 ? '#ff2a6d' : '#ffd166'
       });
     }
   }
 
   triggerMicroBeat() {
-    // Micro scale bounce on tap
-    this.heartSvg.style.transform = 'scale(1.08)';
+    this.heartSvg.style.transform = 'scale(1.06)';
     setTimeout(() => {
       this.heartSvg.style.transform = '';
     }, 180);
@@ -139,7 +160,6 @@ class HeartVisualizer {
       { bpm: 185, label: "MAX TACHYCARDIA: Eman is near! 185 BPM! ❤️" }
     ];
 
-    // Find next stage
     const next = stages.find(s => s.bpm > this.bpm) || stages[0];
     this.setBpm(next.bpm);
 
@@ -147,17 +167,13 @@ class HeartVisualizer {
       this.verdictText.innerHTML = `<strong>Cardiac Update:</strong> ${next.label}`;
     }
 
-    // Spawn celebration particles
-    if (this.particleCanvas) {
-      this.spawnHeartBurst(this.particleCanvas.width / 2, this.particleCanvas.height / 2);
-    }
+    this.spawnHeartBurst((this.canvasWidth || 380) / 2, (this.canvasHeight || 450) / 2);
   }
 
   setBpm(newBpm) {
     this.bpm = newBpm;
     this.bpmCounter.textContent = newBpm;
 
-    // Adjust CSS animation duration: 60s / bpm = seconds per beat
     const beatDuration = (60 / newBpm).toFixed(2);
     this.heartSvg.style.animationDuration = `${beatDuration}s`;
   }
@@ -172,7 +188,6 @@ class HeartVisualizer {
     const duration = 2400; // ms
     const startTime = performance.now();
 
-    // Sound effect trigger if interaction engine has audio
     if (window.romanticAudio && window.romanticAudio.playChime) {
       window.romanticAudio.playChime();
     }
@@ -181,15 +196,13 @@ class HeartVisualizer {
       const elapsed = time - startTime;
       progress = Math.min(elapsed / duration, 1);
 
-      // Ease out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       const currentPercent = Math.floor(eased * 100);
 
-      // Update counter
       this.occupancyPercent.textContent = `${currentPercent}%`;
 
-      // Update liquid Y: from 520 (empty) to 120 (fully flooded)
-      const targetY = 520 - (400 * eased);
+      // Fill liquid from 520 to 110
+      const targetY = 520 - (410 * eased);
       this.emanLiquidFill.setAttribute('y', targetY);
 
       if (progress < 1) {
@@ -210,43 +223,38 @@ class HeartVisualizer {
     this.scanBtn.classList.remove('pulse-btn');
     this.scanBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
 
-    // Glowing watermark highlight
-    if (this.emanWatermark) {
-      this.emanWatermark.style.fill = 'rgba(255, 255, 255, 0.85)';
-      this.emanWatermark.style.filter = 'drop-shadow(0 0 12px #ff2a6d)';
+    // Highlight the bold Eman plate
+    if (this.emanBoldPlate) {
+      this.emanBoldPlate.classList.add('scan-complete');
     }
 
-    // Update Verdict
     if (this.verdictText) {
       this.verdictText.innerHTML = `
-        <strong>Scan Complete:</strong> Inhabitant confirmed as <span style="color:#ffd166; font-weight:700;">Eman</span>. 
+        <strong>Scan Complete:</strong> Inhabitant confirmed as <span style="color:#ffd166; font-weight:800;">EMAN</span>. 
         She occupies <strong>100.0%</strong> of the heart's volume (0.0% free space). 
-        <br/><em>Note: Abdallah only generates the beat; Eman owns every chamber.</em>
+        <br/><em>Abdallah provides the beat; Eman owns the entire heart.</em>
       `;
     }
 
-    // Fireworks confetti burst
     if (typeof confetti === 'function') {
       confetti({
-        particleCount: 80,
+        particleCount: 75,
         spread: 70,
         origin: { y: 0.6 },
         colors: ['#ff2a6d', '#ff758c', '#ffd166', '#ffffff']
       });
     }
 
-    // Bump BPM to excited rate
     this.setBpm(120);
   }
 
-  // Real-time Canvas Rendering
   render(timestamp) {
-    const w = this.particleCanvas.width;
-    const h = this.particleCanvas.height;
+    const w = this.canvasWidth || 380;
+    const h = this.canvasHeight || 450;
 
     this.ctx.clearRect(0, 0, w, h);
 
-    // 1. Render ambient floating particles
+    // 1. Ambient particles
     for (let p of this.particles) {
       p.y += p.speedY;
       p.x += p.speedX;
@@ -259,17 +267,17 @@ class HeartVisualizer {
       this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       this.ctx.fillStyle = p.color;
       this.ctx.globalAlpha = p.alpha;
-      this.ctx.shadowBlur = 6;
+      this.ctx.shadowBlur = 5;
       this.ctx.shadowColor = p.color;
       this.ctx.fill();
     }
 
-    // 2. Render Heart Particles (Burst effects)
+    // 2. Heart Burst particles
     for (let i = this.ambientHearts.length - 1; i >= 0; i--) {
       const hObj = this.ambientHearts[i];
       hObj.x += hObj.vx;
       hObj.y += hObj.vy;
-      hObj.alpha -= 0.018;
+      hObj.alpha -= 0.02;
 
       if (hObj.alpha <= 0) {
         this.ambientHearts.splice(i, 1);
@@ -281,10 +289,9 @@ class HeartVisualizer {
       this.ctx.scale(hObj.size / 20, hObj.size / 20);
       this.ctx.globalAlpha = Math.max(0, hObj.alpha);
       this.ctx.fillStyle = hObj.color;
-      this.ctx.shadowBlur = 10;
+      this.ctx.shadowBlur = 8;
       this.ctx.shadowColor = hObj.color;
 
-      // Draw mini heart shape
       this.ctx.beginPath();
       this.ctx.moveTo(0, 0);
       this.ctx.bezierCurveTo(-5, -7, -12, -2, -12, 5);
@@ -302,24 +309,22 @@ class HeartVisualizer {
     requestAnimationFrame((t) => this.render(t));
   }
 
-  // ECG Line Simulation
   initEcg() {
     const w = this.ecgCanvas.width;
     const h = this.ecgCanvas.height;
     const midY = h / 2;
 
-    let x = 0;
-    const speed = 2.2;
+    const speed = 2.0;
     const points = [];
     const maxPoints = Math.floor(w / speed);
 
     let cyclePos = 0;
 
     const drawEcg = () => {
-      this.ecgCtx.fillStyle = 'rgba(5, 2, 8, 0.18)';
+      this.ecgCtx.fillStyle = 'rgba(5, 2, 8, 0.2)';
       this.ecgCtx.fillRect(0, 0, w, h);
 
-      // Draw subtle phosphor grid
+      // Phosphor grid
       this.ecgCtx.strokeStyle = 'rgba(255, 42, 109, 0.06)';
       this.ecgCtx.lineWidth = 1;
       this.ecgCtx.beginPath();
@@ -333,29 +338,22 @@ class HeartVisualizer {
       }
       this.ecgCtx.stroke();
 
-      // Cycle calculation based on BPM
-      const cycleLength = (60 / this.bpm) * 60; // frames per beat
+      const cycleLength = (60 / this.bpm) * 60;
       cyclePos = (cyclePos + 1) % cycleLength;
       const progress = cyclePos / cycleLength;
 
       let y = midY;
 
-      // P-Q-R-S-T Waveform approximation
       if (progress > 0.15 && progress < 0.22) {
-        // P Wave (Atrial depolarization)
-        y = midY - Math.sin((progress - 0.15) / 0.07 * Math.PI) * 5;
+        y = midY - Math.sin((progress - 0.15) / 0.07 * Math.PI) * 4.5;
       } else if (progress >= 0.25 && progress < 0.27) {
-        // Q Dip
         y = midY + 4;
       } else if (progress >= 0.27 && progress < 0.32) {
-        // R Peak (Ventricles pumping for Eman!)
-        y = midY - 24;
+        y = midY - 21;
       } else if (progress >= 0.32 && progress < 0.35) {
-        // S Dip
-        y = midY + 8;
+        y = midY + 7;
       } else if (progress > 0.42 && progress < 0.55) {
-        // T Wave
-        y = midY - Math.sin((progress - 0.42) / 0.13 * Math.PI) * 7;
+        y = midY - Math.sin((progress - 0.42) / 0.13 * Math.PI) * 6;
       }
 
       points.push(y);
@@ -363,11 +361,10 @@ class HeartVisualizer {
         points.shift();
       }
 
-      // Render ECG Glowing Trace
       this.ecgCtx.beginPath();
       this.ecgCtx.strokeStyle = '#ff2a6d';
       this.ecgCtx.lineWidth = 2;
-      this.ecgCtx.shadowBlur = 8;
+      this.ecgCtx.shadowBlur = 7;
       this.ecgCtx.shadowColor = '#ff2a6d';
 
       for (let i = 0; i < points.length; i++) {
@@ -382,14 +379,13 @@ class HeartVisualizer {
       this.ecgCtx.stroke();
       this.ecgCtx.shadowBlur = 0;
 
-      // Leading Glowing Scanning Dot
       if (points.length > 0) {
         const headX = (points.length - 1) * speed;
         const headY = points[points.length - 1];
         this.ecgCtx.beginPath();
-        this.ecgCtx.arc(headX, headY, 3, 0, Math.PI * 2);
+        this.ecgCtx.arc(headX, headY, 2.8, 0, Math.PI * 2);
         this.ecgCtx.fillStyle = '#ffd166';
-        this.ecgCtx.shadowBlur = 10;
+        this.ecgCtx.shadowBlur = 8;
         this.ecgCtx.shadowColor = '#ffd166';
         this.ecgCtx.fill();
         this.ecgCtx.shadowBlur = 0;
@@ -402,7 +398,6 @@ class HeartVisualizer {
   }
 }
 
-// Instantiate on DOM load
 window.addEventListener('DOMContentLoaded', () => {
   window.heartVisualizer = new HeartVisualizer();
 });

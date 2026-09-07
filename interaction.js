@@ -1,6 +1,7 @@
 ﻿/* ==========================================================================
    INTERACTION ENGINE & ROMANTIC SOUNDTRACK SYNTHESIZER
    Handles Runaway "No" Button, Confetti Celebrations, Modal, Hotspots, & Web Audio
+   Optimized for iOS / iPhone 13 touch events and fluid gesture handling
    ========================================================================== */
 
 class RomanticAudio {
@@ -52,18 +53,15 @@ class RomanticAudio {
     }
   }
 
-  // Play a dreamy synth chime note
   playNote(frequency, time, duration = 1.6, gainLevel = 0.08) {
     if (!this.ctx) return;
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    // Warm sine + triangle blend
     osc.type = 'sine';
     osc.frequency.setValueAtTime(frequency, time);
 
-    // Smooth envelope attack and decay
     gain.gain.setValueAtTime(0.001, time);
     gain.gain.exponentialRampToValueAtTime(gainLevel, time + 0.08);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
@@ -88,7 +86,7 @@ class RomanticAudio {
   scheduleChordLoop() {
     if (!this.isPlaying) return;
 
-    // Romantic chord progression: Fmaj7 -> Cmaj7 -> Dm7 -> Am
+    // Romantic progression: Fmaj7 -> Cmaj7 -> Dm7 -> Am
     const chords = [
       [349.23, 440.00, 523.25, 659.25], // F4, A4, C5, E5 (Fmaj7)
       [261.63, 329.63, 392.00, 493.88], // C4, E4, G4, B4 (Cmaj7)
@@ -102,12 +100,10 @@ class RomanticAudio {
       const now = this.ctx.currentTime;
       const chord = chords[chordIdx];
 
-      // Arpeggiate chord gently
       chord.forEach((freq, noteIdx) => {
-        this.playNote(freq, now + noteIdx * 0.22, 2.6, 0.05);
+        this.playNote(freq, now + noteIdx * 0.22, 2.5, 0.05);
       });
 
-      // Add high sparkling bell
       if (Math.random() > 0.4) {
         const sparkle = chord[Math.floor(Math.random() * chord.length)] * 2;
         this.playNote(sparkle, now + 1.1, 1.8, 0.03);
@@ -127,7 +123,7 @@ class RomanticAudio {
 document.addEventListener('DOMContentLoaded', () => {
   window.romanticAudio = new RomanticAudio();
 
-  // 1. Hotspot Tooltips
+  // 1. Hotspot Tooltips (Touch & Mouse Support)
   const hotspots = document.querySelectorAll('.hotspot');
   const tooltip = document.getElementById('hotspotTooltip');
   const tooltipTitle = document.getElementById('tooltipTitle');
@@ -136,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   hotspots.forEach(spot => {
     const showInfo = (e) => {
-      e.stopPropagation();
+      if (e) e.stopPropagation();
       const title = spot.getAttribute('data-title');
       const desc = spot.getAttribute('data-desc');
 
@@ -156,14 +152,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     spot.addEventListener('mouseenter', showInfo);
     spot.addEventListener('click', showInfo);
+    spot.addEventListener('touchend', showInfo, { passive: true });
   });
 
-  // Hide tooltip when clicking anywhere else
   document.addEventListener('click', () => {
     tooltip.classList.remove('visible');
   });
 
-  // 2. The Playful Runaway "NO" Button
+  // 2. The Playful Runaway "NO" Button (Optimized for iPhone 13)
   const noBtn = document.getElementById('noBtn');
   const yesBtn = document.getElementById('yesBtn');
   const choiceContainer = document.getElementById('choiceContainer');
@@ -187,35 +183,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     runawayAttempts++;
 
-    // Show funny feedback message
     const msg = runawayMessages[(runawayAttempts - 1) % runawayMessages.length];
     runawayFeedback.textContent = msg;
 
-    // Calculate dynamic safe offsets
-    const containerRect = choiceContainer.getBoundingClientRect();
-    const btnRect = noBtn.getBoundingClientRect();
-
-    // Random coordinates within a wide radius
-    const maxOffsetX = Math.min(window.innerWidth * 0.35, 140);
-    const maxOffsetY = 70;
+    // Safe bounds for iPhone 13 (width: 390px)
+    const isMobile = window.innerWidth <= 430;
+    const maxOffsetX = isMobile 
+      ? Math.min((window.innerWidth - 120) / 2, 75)
+      : Math.min((window.innerWidth * 0.35), 140);
+    const maxOffsetY = isMobile ? 45 : 65;
 
     let randX = (Math.random() - 0.5) * 2 * maxOffsetX;
     let randY = (Math.random() - 0.5) * 2 * maxOffsetY;
 
-    // Ensure it noticeably jumps
-    if (Math.abs(randX) < 40) randX = randX >= 0 ? 55 : -55;
-    if (Math.abs(randY) < 30) randY = randY >= 0 ? 45 : -45;
+    if (Math.abs(randX) < 30) randX = randX >= 0 ? 45 : -45;
+    if (Math.abs(randY) < 22) randY = randY >= 0 ? 35 : -35;
 
-    noBtn.style.transform = `translate(${randX}px, ${randY}px)`;
+    // Hardware accelerated transform for iOS Safari 120Hz/60Hz
+    noBtn.style.transform = `translate3d(${randX}px, ${randY}px, 0)`;
 
-    // Slightly increase the size of the YES button each time she tries to click NO!
-    const currentScale = 1 + Math.min(runawayAttempts * 0.04, 0.35);
+    // Yes button grows smoothly
+    const currentScale = 1 + Math.min(runawayAttempts * 0.04, 0.3);
     yesBtn.style.transform = `scale(${currentScale})`;
   };
 
-  // Runaway triggers on mouseover, mouseenter, pointerdown, and touchstart
   noBtn.addEventListener('mouseenter', dodgeNoBtn);
   noBtn.addEventListener('touchstart', dodgeNoBtn, { passive: false });
+  noBtn.addEventListener('pointerdown', dodgeNoBtn);
   noBtn.addEventListener('click', dodgeNoBtn);
 
   // 3. YES Button Celebration & Love Letter
@@ -224,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const replayLoveBtn = document.getElementById('replayLoveBtn');
 
   const triggerCelebration = () => {
-    // If audio is not playing, start it softly
     if (window.romanticAudio && !window.romanticAudio.isPlaying) {
       window.romanticAudio.start();
     }
@@ -232,26 +225,24 @@ document.addEventListener('DOMContentLoaded', () => {
     runawayFeedback.textContent = "Permanent residency officially approved! ❤️💍";
     runawayFeedback.style.color = "#ffd166";
 
-    // Confetti Cannon
+    // Multi-stage confetti
     if (typeof confetti === 'function') {
-      // 1. Initial Blast
       confetti({
-        particleCount: 120,
-        spread: 100,
+        particleCount: 110,
+        spread: 90,
         origin: { y: 0.65 },
         colors: ['#ff1493', '#ff69b4', '#ffd166', '#ffffff']
       });
 
-      // 2. Cascading Side Cannons
       setTimeout(() => {
         confetti({
-          particleCount: 60,
+          particleCount: 50,
           angle: 60,
           spread: 55,
           origin: { x: 0, y: 0.7 }
         });
         confetti({
-          particleCount: 60,
+          particleCount: 50,
           angle: 120,
           spread: 55,
           origin: { x: 1, y: 0.7 }
@@ -259,15 +250,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 350);
     }
 
-    // Open Letter Modal
     setTimeout(() => {
       letterModal.classList.add('active');
-    }, 600);
+    }, 550);
   };
 
   yesBtn.addEventListener('click', triggerCelebration);
+  yesBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    triggerCelebration();
+  });
 
-  // Modal Close & Replay
+  // Modal Controls
   closeModalBtn.addEventListener('click', () => {
     letterModal.classList.remove('active');
   });
@@ -281,8 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
   replayLoveBtn.addEventListener('click', () => {
     if (typeof confetti === 'function') {
       confetti({
-        particleCount: 100,
-        spread: 80,
+        particleCount: 90,
+        spread: 75,
         origin: { y: 0.5 },
         colors: ['#ff2a6d', '#ffd166', '#ff758c', '#ffffff']
       });
