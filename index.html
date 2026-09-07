@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>To Eman ❤️ | Abdallah's Heart</title>
+  <title>To Eman ❤️ | A Heart That Beats Only For You</title>
   
-  <!-- Apple & Mobile Optimization (iPhone 13 Polish) -->
+  <!-- Apple & Mobile Optimization (iPhone 13 & Android) -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="format-detection" content="telephone=no" />
@@ -13,8 +13,8 @@
 
   <!-- SEO & Social Sharing Meta Tags -->
   <meta name="description" content="A special interactive heart scan for Eman from Abdallah. Every beat belongs to you." />
-  <meta property="og:title" content="To Eman ❤️ — Abdallah's Heart Scan" />
-  <meta property="og:description" content="A special interactive heart scan for Eman. See who occupies every beat." />
+  <meta property="og:title" content="To Eman ❤️ — A Heart That Beats Only For You" />
+  <meta property="og:description" content="A real-time cardiac scan of Abdallah's Heart, occupied 100% by Eman." />
   <meta property="og:type" content="website" />
 
   <!-- Google Fonts -->
@@ -28,6 +28,9 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
+  <!-- MQTT Client for Real-time Peer Sync (Android <-> iPhone) -->
+  <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -36,16 +39,28 @@
   <div class="ambient-glow glow-2"></div>
   <div class="ambient-glow glow-3"></div>
 
+  <!-- Audio Element: Tamer Ashour - Ad El Waad (سيب ايدك والباقي عليا) -->
+  <audio id="bgMusic" src="tamer_ashour.mp3" loop preload="auto"></audio>
+
   <!-- Audio Control Button -->
-  <button id="audioToggle" class="audio-toggle-btn" aria-label="Toggle romantic soundtrack">
+  <button id="audioToggle" class="audio-toggle-btn" aria-label="Toggle Tamer Ashour soundtrack">
     <div class="audio-bars">
       <span class="bar bar-1"></span>
       <span class="bar bar-2"></span>
       <span class="bar bar-3"></span>
       <span class="bar bar-4"></span>
     </div>
-    <span id="audioLabel">Music: Off</span>
+    <span id="audioLabel">تامر عاشور 🎵</span>
   </button>
+
+  <!-- Floating Heartbeat Received Toast -->
+  <div id="pulseToast" class="pulse-toast">
+    <div class="pulse-toast-icon">💓</div>
+    <div class="pulse-toast-content">
+      <h4 id="pulseToastTitle">Heartbeat Received!</h4>
+      <p id="pulseToastDesc">Abdallah just sent you a pulse.</p>
+    </div>
+  </div>
 
   <div class="app-container">
     <!-- Header / Medical Report Card Header -->
@@ -62,10 +77,24 @@
       </p>
     </header>
 
+    <!-- Real-time Connected Sync Bar (Android <-> iPhone Sync) -->
+    <section class="sync-banner glass-panel" id="syncBanner">
+      <div class="sync-status-indicator">
+        <span class="sync-dot" id="syncDot"></span>
+        <span class="sync-status-text" id="syncStatusText">Checking connection...</span>
+      </div>
+      <div class="sync-role-box">
+        <span class="role-label">Holding device:</span>
+        <button id="roleToggleBtn" class="role-badge" title="Tap to switch device identity">
+          <span id="roleIcon">📱</span> <span id="roleName">Detecting...</span>
+        </button>
+      </div>
+    </section>
+
     <!-- Interactive Heart Scan Card -->
     <main class="scan-wrapper">
       <div class="scan-frame glass-panel">
-        <!-- Card Top Bar: Vitals Stats (Optimized for iPhone 13 390px) -->
+        <!-- Card Top Bar: Vitals Stats -->
         <div class="vitals-bar">
           <div class="vital-item">
             <span class="vital-label">PATIENT</span>
@@ -96,7 +125,6 @@
           <div class="svg-heart-container" id="svgHeartContainer">
             <svg id="anatomicalHeartSvg" viewBox="0 0 500 550" class="anatomical-heart-svg">
               <defs>
-                <!-- Gradients for realistic glowing anatomical chambers -->
                 <radialGradient id="heartGlowGrad" cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stop-color="#ff3366" stop-opacity="0.85"/>
                   <stop offset="50%" stop-color="#cc0044" stop-opacity="0.65"/>
@@ -119,34 +147,20 @@
                   <stop offset="100%" stop-color="#8a186b" />
                 </linearGradient>
 
-                <!-- Bold EMAN Gradient -->
-                <linearGradient id="emanTextGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#ffffff" />
-                  <stop offset="40%" stop-color="#ffe6a7" />
-                  <stop offset="80%" stop-color="#ffd166" />
-                  <stop offset="100%" stop-color="#ff758c" />
-                </linearGradient>
-
-                <!-- Neon Glowing Filter -->
                 <filter id="boldEmanGlow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ff2a6d" flood-opacity="0.95" />
-                  <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#ffd166" flood-opacity="0.7" />
+                  <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ffffff" flood-opacity="0.9" />
+                  <feDropShadow dx="0" dy="0" stdDeviation="15" flood-color="#ff2a6d" flood-opacity="0.95" />
                 </filter>
               </defs>
 
               <!-- Vascular / Aortic Arch Roots -->
-              <!-- Superior Vena Cava -->
               <path class="vessel vena-cava" d="M190 70 L190 170 Q190 190 210 200 L215 140 Q215 100 210 70 Z" />
               
-              <!-- Aorta & 3 Branching Arteries -->
               <g class="aorta-group">
-                <!-- Main Arch -->
                 <path class="aorta-arch" d="M225 150 Q235 60 280 60 Q330 60 325 180 L290 180 Q295 105 275 105 Q255 105 250 150 Z" />
-                <!-- Brachiocephalic, Carotid, Subclavian arteries -->
                 <path class="aorta-branches" d="M255 75 L250 35 L263 35 L267 70 M280 60 L280 25 L292 25 L291 62 M305 65 L315 30 L327 33 L318 73" />
               </g>
 
-              <!-- Pulmonary Artery & Branches -->
               <path class="pulmonary-artery" d="M210 160 Q260 170 305 185 Q350 200 360 215 L345 235 Q300 205 250 195 L225 240 Q180 230 170 210 Z" />
 
               <!-- Main Heart Muscular Body -->
@@ -169,12 +183,11 @@
                   C280 165 265 165 250 160 Z" />
               </clipPath>
 
-              <!-- Dynamic Liquid Rise for Eman's Presence -->
               <g clip-path="url(#heartClip)">
                 <rect id="emanLiquidFill" x="100" y="520" width="320" height="400" fill="url(#emanFillGrad)" opacity="0.92" />
               </g>
 
-              <!-- Intricate Coronary Arteries -->
+              <!-- Coronary Arteries -->
               <g class="coronary-network">
                 <path class="coronary-vessel vessel-main" d="M280 175 Q275 250 250 320 Q235 370 270 460" />
                 <path class="coronary-vessel vessel-sub" d="M272 230 Q330 260 360 300" />
@@ -187,42 +200,35 @@
 
               <!-- ★★★ EMAN'S BOLD WHITE NAME EMBEDDED DIRECTLY IN THE HEART ★★★ -->
               <g class="eman-bold-plate" transform="translate(270, 315)" id="emanBoldPlate">
-                <!-- Pure Bold White EMAN -->
                 <text class="eman-main-bold" text-anchor="middle" y="6">EMAN</text>
-                <!-- Occupancy Badge -->
                 <text class="eman-sub-bold" text-anchor="middle" y="28">♥ OCCUPIES 100% ♥</text>
               </g>
 
               <!-- Interactive Hotspots -->
-              <!-- Hotspot 1: Aorta -->
               <g class="hotspot" data-title="Aorta Arch" data-desc="Pumping pure adoration to every thought in Abdallah's mind." transform="translate(290, 85)">
                 <circle class="hotspot-pulse" r="16" />
                 <circle class="hotspot-core" r="8" />
                 <text class="hotspot-label" x="18" y="4">AORTA</text>
               </g>
 
-              <!-- Hotspot 2: Sinoatrial Node (Abdallah's Pulse Generator) -->
               <g class="hotspot hotspot-abdallah" data-title="Sinoatrial Node (The Pulse)" data-desc="Abdallah's beat anchor: It beats only because Eman is in this world." transform="translate(195, 195)">
                 <circle class="hotspot-pulse pulse-cyan" r="18" />
                 <circle class="hotspot-core core-cyan" r="9" />
                 <text class="hotspot-label label-cyan" x="-115" y="4">ABDALLAH (PULSE)</text>
               </g>
 
-              <!-- Hotspot 3: Left Ventricle (The Powerhouse) -->
               <g class="hotspot" data-title="Left Ventricle" data-desc="Working overtime 24/7 pumping 100% unconditional devotion to Eman." transform="translate(345, 330)">
                 <circle class="hotspot-pulse" r="16" />
                 <circle class="hotspot-core" r="8" />
                 <text class="hotspot-label" x="18" y="4">VENTRICLE</text>
               </g>
 
-              <!-- Hotspot 4: Right Atrium (Serotonin Intake) -->
               <g class="hotspot" data-title="Right Atrium" data-desc="Receives an immediate flood of joy and serotonin whenever Eman texts or smiles." transform="translate(160, 285)">
                 <circle class="hotspot-pulse" r="16" />
                 <circle class="hotspot-core" r="8" />
                 <text class="hotspot-label" x="-60" y="4">ATRIUM</text>
               </g>
 
-              <!-- Hotspot 5: Apex (The Epicenter of Butterflies) -->
               <g class="hotspot" data-title="Cardiac Apex" data-desc="The tip of the heart: Exactly where all the butterflies take flight." transform="translate(275, 475)">
                 <circle class="hotspot-pulse" r="16" />
                 <circle class="hotspot-core" r="8" />
@@ -248,13 +254,22 @@
           </div>
 
           <div class="action-bar">
-            <button id="scanOccupancyBtn" class="btn btn-primary pulse-btn">
+            <!-- Vibrate / Send Heartbeat Sync Button -->
+            <button id="sendPulseBtn" class="btn btn-vibrate pulse-btn">
+              <i data-lucide="heart-pulse" class="btn-icon"></i>
+              <span id="pulseBtnText">ابعت نبضة لـ Eman 💓</span>
+            </button>
+
+            <!-- Occupancy Scan Button -->
+            <button id="scanOccupancyBtn" class="btn btn-primary">
               <i data-lucide="scan-heart" class="btn-icon"></i>
               <span id="scanBtnText">Run Full Occupancy Scan</span>
             </button>
+
+            <!-- Boost Heart Rate Button -->
             <button id="boostHeartRateBtn" class="btn btn-secondary">
               <i data-lucide="zap" class="btn-icon"></i>
-              <span>Make Heart Beat Faster</span>
+              <span>Beat Faster</span>
             </button>
           </div>
         </div>
@@ -325,7 +340,7 @@
             Every single beat has your name written into its rhythm. You don't just hold a piece of my heart—you fill the entire space, from the aorta down to the deepest whisper of the apex. I only provide the heartbeat, but <strong>you are the reason it beats.</strong>
           </p>
           <p>
-            Thank you for being my favorite thought every morning, my peace every night, and the greatest blessing I could ever ask for.
+            سيب ايدك والباقي عليا.. كل ده ومش عايز قلبي مايبقاش على بعضه؟ قلبي أصلا انتي واخداه، وحبك انتي في حتة لوحده ❤️
           </p>
           <p class="letter-closing">
             Always & Forever Yours,<br/>
