@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    INTERACTION ENGINE, TAMER ASHOUR AUDIO & REALTIME ANDROID <-> IPHONE SYNC
    - Tamer Ashour "سيب ايدك والباقي عليا" 30-sec official clip
    - Real-time MQTT WebSocket presence (Connected only when both are on)
@@ -55,31 +55,88 @@ class TamerAshourPlayer {
 }
 
 // --------------------------------------------------------------------------
-// 2. Acoustic Sub-Bass Haptic Rumble for iPhone (Simulates physical vibration)
+// 2. Heavy Physical Vibration & Intense Site Vibration Engine
 // --------------------------------------------------------------------------
-function playSubBassHaptic() {
+function playIntenseSubBassHaptic() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
-    // 48Hz resonant tone makes iPhone stereo speakers vibrate mechanically
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(48, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(24, ctx.currentTime + 0.35);
+    // Dual lub-DUB heavy sub-bass acoustic rumble
+    const now = ctx.currentTime;
+    [
+      { freq: 48, start: now, dur: 0.28, gain: 1.2 },
+      { freq: 36, start: now + 0.32, dur: 0.45, gain: 1.4 }
+    ].forEach(p => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(p.freq, p.start);
+      osc.frequency.exponentialRampToValueAtTime(20, p.start + p.dur);
 
-    gain.gain.setValueAtTime(0.95, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      gain.gain.setValueAtTime(p.gain, p.start);
+      gain.gain.exponentialRampToValueAtTime(0.001, p.start + p.dur);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(p.start);
+      osc.stop(p.start + p.dur);
+    });
   } catch (e) {
-    console.log('Haptic audio rumble unavailable:', e);
+    console.log('Sub-bass haptic note:', e);
+  }
+}
+
+function triggerIntenseVibrationAndSiteShake() {
+  // 1. Heavy Physical Vibration (Android navigator.vibrate)
+  if ('vibrate' in navigator) {
+    try {
+      // Powerful multi-pulse heartbeat pattern lasting nearly 3 seconds
+      navigator.vibrate([450, 120, 450, 120, 700, 150, 900]);
+    } catch (e) {
+      console.log('Vibration API error:', e);
+    }
+  }
+
+  // 2. Mechanical Acoustic Speaker Rumble (iPhone and all devices)
+  playIntenseSubBassHaptic();
+
+  // 3. Heavy Site Vibration (Screen & Viewport Shake)
+  const appContainer = document.querySelector('.app-container');
+  document.body.classList.remove('site-vibrating');
+  if (appContainer) appContainer.classList.remove('site-vibrating');
+
+  void document.body.offsetWidth; // Force reflow
+  document.body.classList.add('site-vibrating');
+  if (appContainer) appContainer.classList.add('site-vibrating');
+
+  // 4. Full-Screen Visual Cardiac Flash
+  const flash = document.getElementById('vibrationFlash');
+  if (flash) {
+    flash.classList.add('active');
+    setTimeout(() => flash.classList.remove('active'), 280);
+  }
+
+  // 5. Anatomical Heart Expansion & Shimmer
+  const heart = document.getElementById('anatomicalHeartSvg');
+  if (heart) {
+    heart.classList.add('heart-vibrating');
+    setTimeout(() => heart.classList.remove('heart-vibrating'), 1400);
+  }
+
+  setTimeout(() => {
+    document.body.classList.remove('site-vibrating');
+    if (appContainer) appContainer.classList.remove('site-vibrating');
+  }, 1450);
+
+  // 6. Particle Burst on Heart Stage
+  if (window.heartVisualizer && window.heartVisualizer.spawnHeartBurst) {
+    const stage = document.getElementById('heartStage');
+    if (stage) {
+      const rect = stage.getBoundingClientRect();
+      window.heartVisualizer.spawnHeartBurst(rect.width / 2, rect.height / 2);
+    }
   }
 }
 
@@ -287,90 +344,63 @@ class HeartSyncNetwork {
       } else {
         this.syncStatusText.textContent = `🟡 في انتظار دخول ${partnerArabic}... ⏳`;
       }
-      this.sendPulseBtn.disabled = true;
+      // Keep button enabled so users can test vibration and feel it anytime!
+      this.sendPulseBtn.disabled = false;
     }
   }
 
   // --------------------------------------------------------------------------
-  // Send Heartbeat Pulse (Triggered when button is tapped)
+  // Send Heartbeat Pulse (Vibrates Phone & Shakes Site)
   // --------------------------------------------------------------------------
   sendHeartbeatPulse() {
-    if (!this.client || !this.client.connected) return;
+    // 1. Trigger Intense Vibration & Site Shake locally immediately!
+    triggerIntenseVibrationAndSiteShake();
 
-    // Send MQTT pulse
-    const msg = JSON.stringify({
-      from: this.myRole,
-      to: this.partnerRole,
-      ts: Date.now()
-    });
-    this.client.publish(this.TOPIC_PULSE, msg);
+    // 2. Transmit to partner if connected
+    if (this.client && this.client.connected) {
+      const msg = JSON.stringify({
+        from: this.myRole,
+        to: this.partnerRole,
+        ts: Date.now()
+      });
+      this.client.publish(this.TOPIC_PULSE, msg);
+    }
 
-    // Immediate local button feedback
+    // 3. Immediate local feedback
     const originalText = this.pulseBtnText.textContent;
-    this.pulseBtnText.textContent = "تم إرسال النبضة! 🚀";
-    this.sendPulseBtn.style.transform = "scale(0.96)";
+    if (this.partnerOnline) {
+      this.pulseBtnText.textContent = "تم إرسال النبضة واهتزاز الموقع! 🚀";
+    } else {
+      const partnerArabic = this.myRole === 'abdallah' ? 'إيمان' : 'عبدالله';
+      this.pulseBtnText.textContent = `هزيت تليفونك والموقع! 💓 (في انتظار ${partnerArabic})`;
+    }
+    this.sendPulseBtn.style.transform = "scale(0.95)";
 
     setTimeout(() => {
       this.sendPulseBtn.style.transform = "";
       this.pulseBtnText.textContent = originalText;
-    }, 1200);
-
-    // Trigger local micro bounce
-    if (window.heartVisualizer) {
-      window.heartVisualizer.triggerMicroBeat();
-    }
+    }, 1800);
   }
 
   // --------------------------------------------------------------------------
-  // Handle Incoming Pulse from Partner (Vibrate phone & screen shake!)
+  // Handle Incoming Pulse from Partner (Vibrates Phone & Shakes Site!)
   // --------------------------------------------------------------------------
   handleIncomingPulse(data) {
     if (data.from === this.partnerRole) {
       console.log('Incoming heartbeat pulse from partner!');
 
-      // 1. Android Native Physical Vibration
-      if ('vibrate' in navigator) {
-        navigator.vibrate([180, 80, 180, 80, 350]);
-      }
+      // Trigger full heavy vibration (phone + site)
+      triggerIntenseVibrationAndSiteShake();
 
-      // 2. iPhone Acoustic Speaker Rumble (sub-bass vibration)
-      playSubBassHaptic();
-
-      // 3. Screen Haptic Shake Animation
-      document.body.classList.remove('haptic-active');
-      void document.body.offsetWidth; // force reflow
-      document.body.classList.add('haptic-active');
-      setTimeout(() => {
-        document.body.classList.remove('haptic-active');
-      }, 550);
-
-      // 4. Heart Visualizer rapid double bounce & particle burst
-      if (window.heartVisualizer) {
-        const heart = document.getElementById('anatomicalHeartSvg');
-        if (heart) {
-          heart.style.transform = "scale(1.18)";
-          setTimeout(() => { heart.style.transform = "scale(0.98)"; }, 150);
-          setTimeout(() => { heart.style.transform = "scale(1.12)"; }, 280);
-          setTimeout(() => { heart.style.transform = ""; }, 450);
-        }
-        if (window.heartVisualizer.spawnHeartBurst) {
-          const stage = document.getElementById('heartStage');
-          if (stage) {
-            const rect = stage.getBoundingClientRect();
-            window.heartVisualizer.spawnHeartBurst(rect.width / 2, rect.height / 2);
-          }
-        }
-      }
-
-      // 5. Show Romantic Toast
+      // Show Romantic Toast
       this.showPulseToast(data.from);
     }
   }
 
   showPulseToast(fromRole) {
     const sender = fromRole === 'abdallah' ? 'عبدالله' : 'إيمان';
-    this.pulseToastTitle.textContent = `نبضة قلب من ${sender}! 💓`;
-    this.pulseToastDesc.textContent = `${sender} بعتلك نبضة قلب دلوقتي حالا.. حاسس بيها؟`;
+    this.pulseToastTitle.textContent = `نبضة قلب قوية من ${sender}! 💓`;
+    this.pulseToastDesc.textContent = `${sender} بعتلك نبضة قلب هزت الموقع وتليفونك دلوقتي حالا!`;
     
     this.pulseToast.classList.add('show');
     clearTimeout(this.toastTimer);
