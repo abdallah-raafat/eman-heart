@@ -1069,25 +1069,46 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   Vibrate / Heartbeat Button Styling
+   Vibrate / Heartbeat Button Styling (Grey by default, Live when 2 devices on)
    -------------------------------------------------------------------------- */
 .btn-vibrate {
-  background: linear-gradient(135deg, #ff1493 0%, #e11d48 100%);
-  color: #fff;
-  box-shadow: 0 4px 22px rgba(255, 20, 147, 0.5);
   font-weight: 800;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-vibrate:hover:not(:disabled), .btn-vibrate:active:not(:disabled) {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 6px 30px rgba(255, 20, 147, 0.75);
+/* Grey / Idle State when solo or waiting for partner */
+.btn-vibrate.is-idle {
+  background: #25162e !important;
+  color: #9c85ab !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: none !important;
+  filter: grayscale(0.85);
+  opacity: 0.72;
+  animation: none !important;
+  cursor: pointer;
 }
 
-.btn-vibrate:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
-  box-shadow: none;
+.btn-vibrate.is-idle:hover {
+  background: #311c3e !important;
+  color: #c9b0db !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Glowing Live State when 2 devices are connected */
+.btn-vibrate.is-live {
+  background: linear-gradient(135deg, #ff1493 0%, #e11d48 100%) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 20, 147, 0.55) !important;
+  box-shadow: 0 4px 28px rgba(255, 20, 147, 0.75), 0 0 16px rgba(255, 42, 109, 0.45) !important;
+  filter: none !important;
+  opacity: 1 !important;
+  cursor: pointer !important;
+  animation: pulseBeat 1.4s infinite !important;
+}
+
+.btn-vibrate.is-live:hover, .btn-vibrate.is-live:active {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 32px rgba(255, 20, 147, 0.9), 0 0 22px rgba(255, 42, 109, 0.65) !important;
 }
 
 /* --------------------------------------------------------------------------

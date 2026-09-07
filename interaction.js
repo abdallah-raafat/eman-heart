@@ -336,7 +336,15 @@ class HeartSyncNetwork {
     if (isConnected) {
       this.syncDot.className = 'sync-dot connected';
       this.syncStatusText.textContent = `🟢 متصلين! قلوبكم بتنبض سوا سوا ❤️`;
-      this.sendPulseBtn.disabled = false;
+
+      // Turns LIVE (glowing neon gradient) only when TWO devices are connected
+      if (this.sendPulseBtn) {
+        this.sendPulseBtn.classList.remove('is-idle');
+        this.sendPulseBtn.classList.add('is-live');
+      }
+      if (this.pulseBtnText) {
+        this.pulseBtnText.textContent = this.myRole === 'abdallah' ? "ابعت نبضة لـ Eman 💓" : "ابعتي نبضة لـ Abdallah 💓";
+      }
     } else {
       this.syncDot.className = wasLeft ? 'sync-dot disconnected' : 'sync-dot';
       if (wasLeft) {
@@ -344,19 +352,38 @@ class HeartSyncNetwork {
       } else {
         this.syncStatusText.textContent = `🟡 في انتظار دخول ${partnerArabic}... ⏳`;
       }
-      // Keep button enabled so users can test vibration and feel it anytime!
-      this.sendPulseBtn.disabled = false;
+
+      // Reverts to GREY / IDLE when not both connected
+      if (this.sendPulseBtn) {
+        this.sendPulseBtn.classList.remove('is-live');
+        this.sendPulseBtn.classList.add('is-idle');
+      }
+      if (this.pulseBtnText) {
+        this.pulseBtnText.textContent = `ابعت نبضة (في انتظار ${partnerArabic}...) ⏳`;
+      }
     }
   }
 
   // --------------------------------------------------------------------------
-  // Send Heartbeat Pulse (Vibrates Phone & Shakes Site)
+  // Send Heartbeat Pulse (Only active when both connected, or prompts user)
   // --------------------------------------------------------------------------
   sendHeartbeatPulse() {
-    // 1. Trigger Intense Vibration & Site Shake locally immediately!
+    const partnerArabic = this.myRole === 'abdallah' ? 'إيمان' : 'عبدالله';
+
+    // If button is grey (waiting for partner), guide the user
+    if (!this.partnerOnline) {
+      this.showPulseToast(this.myRole);
+      this.pulseToastTitle.textContent = `في انتظار ${partnerArabic}... ⏳`;
+      this.pulseToastDesc.textContent = `الزرار لونه رصاصي.. هينور ويبقى لايف أول ما ${partnerArabic} تفتح الموقع معاك!`;
+      if ('vibrate' in navigator) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      return;
+    }
+
+    // Both are connected! Trigger full intense phone vibration and site shake
     triggerIntenseVibrationAndSiteShake();
 
-    // 2. Transmit to partner if connected
     if (this.client && this.client.connected) {
       const msg = JSON.stringify({
         from: this.myRole,
@@ -366,14 +393,8 @@ class HeartSyncNetwork {
       this.client.publish(this.TOPIC_PULSE, msg);
     }
 
-    // 3. Immediate local feedback
     const originalText = this.pulseBtnText.textContent;
-    if (this.partnerOnline) {
-      this.pulseBtnText.textContent = "تم إرسال النبضة واهتزاز الموقع! 🚀";
-    } else {
-      const partnerArabic = this.myRole === 'abdallah' ? 'إيمان' : 'عبدالله';
-      this.pulseBtnText.textContent = `هزيت تليفونك والموقع! 💓 (في انتظار ${partnerArabic})`;
-    }
+    this.pulseBtnText.textContent = "تم إرسال النبضة واهتزاز الموقع! 🚀";
     this.sendPulseBtn.style.transform = "scale(0.95)";
 
     setTimeout(() => {
