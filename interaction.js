@@ -63,19 +63,20 @@ function playIntenseSubBassHaptic() {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
 
-    // Dual lub-DUB heavy sub-bass acoustic rumble
+    // Smooth, deep lub-DUB acoustic rumble without clipping
     const now = ctx.currentTime;
     [
-      { freq: 48, start: now, dur: 0.28, gain: 1.2 },
-      { freq: 36, start: now + 0.32, dur: 0.45, gain: 1.4 }
+      { freq: 44, start: now, dur: 0.22, gain: 0.85 },
+      { freq: 32, start: now + 0.28, dur: 0.38, gain: 1.0 }
     ].forEach(p => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(p.freq, p.start);
-      osc.frequency.exponentialRampToValueAtTime(20, p.start + p.dur);
+      osc.frequency.exponentialRampToValueAtTime(18, p.start + p.dur);
 
-      gain.gain.setValueAtTime(p.gain, p.start);
+      gain.gain.setValueAtTime(0.001, p.start);
+      gain.gain.linearRampToValueAtTime(p.gain, p.start + 0.035);
       gain.gain.exponentialRampToValueAtTime(0.001, p.start + p.dur);
 
       osc.connect(gain);
@@ -89,11 +90,11 @@ function playIntenseSubBassHaptic() {
 }
 
 function triggerIntenseVibrationAndSiteShake() {
-  // 1. Heavy Physical Vibration (Android navigator.vibrate)
+  // 1. Smooth, Velvety Cardiac Vibration (Android navigator.vibrate)
   if ('vibrate' in navigator) {
     try {
-      // Powerful multi-pulse heartbeat pattern lasting nearly 3 seconds
-      navigator.vibrate([450, 120, 450, 120, 700, 150, 900]);
+      // Natural cardiac cadence: Lub-dub... Lub-dub... Lub-dub
+      navigator.vibrate([80, 100, 160, 260, 90, 100, 180, 280, 90, 100, 200]);
     } catch (e) {
       console.log('Vibration API error:', e);
     }
@@ -102,33 +103,39 @@ function triggerIntenseVibrationAndSiteShake() {
   // 2. Mechanical Acoustic Speaker Rumble (iPhone and all devices)
   playIntenseSubBassHaptic();
 
-  // 3. Heavy Site Vibration (Screen & Viewport Shake)
+  // 3. Smooth Hardware-Accelerated Site Vibration
   const appContainer = document.querySelector('.app-container');
-  document.body.classList.remove('site-vibrating');
-  if (appContainer) appContainer.classList.remove('site-vibrating');
+  if (appContainer) {
+    appContainer.classList.remove('site-vibrating');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        appContainer.classList.add('site-vibrating');
+      });
+    });
+  }
 
-  void document.body.offsetWidth; // Force reflow
-  document.body.classList.add('site-vibrating');
-  if (appContainer) appContainer.classList.add('site-vibrating');
-
-  // 4. Full-Screen Visual Cardiac Flash
+  // 4. Full-Screen Gentle Cardiac Flash
   const flash = document.getElementById('vibrationFlash');
   if (flash) {
     flash.classList.add('active');
-    setTimeout(() => flash.classList.remove('active'), 280);
+    setTimeout(() => flash.classList.remove('active'), 320);
   }
 
-  // 5. Anatomical Heart Expansion & Shimmer
+  // 5. Anatomical Heart Expansion & Gentle Shimmer
   const heart = document.getElementById('anatomicalHeartSvg');
   if (heart) {
-    heart.classList.add('heart-vibrating');
-    setTimeout(() => heart.classList.remove('heart-vibrating'), 1400);
+    heart.classList.remove('heart-vibrating');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        heart.classList.add('heart-vibrating');
+        setTimeout(() => heart.classList.remove('heart-vibrating'), 1200);
+      });
+    });
   }
 
   setTimeout(() => {
-    document.body.classList.remove('site-vibrating');
     if (appContainer) appContainer.classList.remove('site-vibrating');
-  }, 1450);
+  }, 1350);
 
   // 6. Particle Burst on Heart Stage
   if (window.heartVisualizer && window.heartVisualizer.spawnHeartBurst) {
